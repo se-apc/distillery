@@ -2,6 +2,53 @@
 
 set -e
 
+# Determines the path to the current vm.args file to use
+get_vmargs_path() {
+    if [ -z "$VMARGS_PATH" ]; then
+        if [ -f "$RELEASE_MUTABLE_DIR/vm.args" ]; then
+            echo "$RELEASE_MUTABLE_DIR/vm.args"
+        fi
+        if [ -f "$RELEASE_CONFIG_DIR/vm.args" ]; then
+            echo "$RELEASE_CONFIG_DIR/vm.args"
+        fi
+    else
+        echo "$VMARGS_PATH"
+    fi
+
+    echo ""
+}
+
+# We're expecting that the real configs have been generated at
+# least once already, otherwise we don't set any env vars here
+# so as to prevent loading invalid configs/arg files
+#
+# See 'configure_release' for more info
+partial_configure_release() {
+    if [ -z "$VMARGS_PATH" ]; then
+        if [ -f "$RELEASE_MUTABLE_DIR/vm.args" ]; then
+            export VMARGS_PATH="$RELEASE_MUTABLE_DIR/vm.args"
+        elif [ -f "$RELEASE_CONFIG_DIR/vm.args" ]; then
+            export VMARGS_PATH="$RELEASE_CONFIG_DIR/vm.args"
+        fi
+    fi
+
+    if [ -z "$SYS_CONFIG_PATH" ]; then
+        if [ -f "$RELEASE_MUTABLE_DIR/sys.config" ]; then
+            export SYS_CONFIG_PATH="$RELEASE_MUTABLE_DIR/sys.config"
+        elif [ -f "$RELEASE_CONFIG_DIR/sys.config" ]; then
+            export SYS_CONFIG_PATH="$RELEASE_CONFIG_DIR/sys.config"
+        fi
+    fi
+
+    if [ -z "$VMARGS_PATH" ] || [ -z "$SYS_CONFIG_PATH" ]; then
+        # We need to generate the config files for the first time
+        configure_release
+    else
+        # Set up the node based on the new configuration
+        _configure_node
+    fi
+}
+
 # Sets config paths for sys.config and vm.args, and ensures that env var replacements are performed
 configure_release() {
     # If a preconfigure hook calls back to the run control script, do not
@@ -150,13 +197,58 @@ _replace_os_vars() {
     mv -- "$1.bak" "$1"
 }
 
+# Do a textual replacement of ${VAR} occurrances in $1 and pipe to stdout
+_replace_os_vars_str() {
+    awk '
+        function escape(s) {
+            gsub(/'\&'/, "\\\\&", s);
+            return s;
+        }
+        {
+            while(match($0,"[$]{[^}]*}")) {
+                var=substr($0,RSTART+2,RLENGTH-3);
+                gsub("[$]{"var"}", escape(ENVIRON[var]))
+            }
+    }1' < "$1"
+}
 
 # Sets up the node name configuration for clustering/remote commands
 _configure_node() {
+    # Already configured
+    if [ ! -z "$NAME" ]; then
+        if [ ! -z "$NAME_TYPE" ]; then
+            return 0
+        else
+            export NAME_TYPE
+            case $NAME in
+                *@*)
+                    NAME_TYPE="-name"
+                    ;;
+                *)
+                    HOSTNAME="$(get_hostname)"
+                    if [[ ! "$HOSTNAME" =~ ^[^\.]+\..*$ ]]; then
+                        # If the hostname is not fully qualified, change the name type
+                        NAME_TYPE="-sname"
+                    else
+                        NAME_TYPE="-name"
+                    fi
+                    NAME="$NAME@$HOSTNAME"
+                    ;;
+            esac
+            return 0
+        fi
+    fi
+
+    # We need to detect configuration from vm.args
+    vmargs="$(get_vmargs_path)"
+    if [ -z "$vmargs" ]; then
+        fail "Unable to load vm.args and NAME is not exported, unable to configure node!"
+    fi
+
     # Extract the target node name from node.args
     # Should be `-sname somename` or `-name somename@somehost`
     export NAME_ARG
-    NAME_ARG="$(grep '^-s\{0,1\}name' "$VMARGS_PATH" || true)"
+    NAME_ARG="$(_replace_os_vars_str "${vmargs}" | grep '^-s\{0,1\}name' || true)"
     if [ -z "$NAME_ARG" ]; then
         echo "vm.args needs to have either -name or -sname parameter."
         exit 1
@@ -169,28 +261,30 @@ _configure_node() {
     # NAME will be either `somename` or `somename@somehost`
     export NAME
     NAME="$(echo "$NAME_ARG" | awk '{print $2}' | tail -n 1)"
+    if [ -z "$NAME" ]; then
+        fail "Invalid $NAME_TYPE value in vm.args, value is empty!"
+    fi
 
     # User can specify an sname without @hostname
     # This will fail when creating remote shell
     # So here we check for @ and add @hostname if missing
     case $NAME in
         *@*)
-            if [ "$NAME_TYPE" = "-name" ]; then
-                if [[ ! "$NAME" =~ ^[^@]+@[^\.]+\..*$ ]]; then
-                    # -name was given, but the hostname is not fully qualified
-                    fail "Failed setting -name! The hostname in '$NAME' is not fully qualified"
+            if [[ "$NAME" =~ ^[^@]+@[^\.]+\..*$ ]]; then
+                if [ "$NAME_TYPE" = "-sname" ]; then
+                    fail "cannot use fully-qualified name '$NAME' with -sname argument!"
                 fi
             fi
             ;;
         *)
-            HOSTNAME="$(get_hostname)"
-            if [ "$NAME_TYPE" = "-name" ]; then
-                if [[ ! "$HOSTNAME" =~ ^[^\.]+\..*$ ]]; then
-                    # If the hostname is not fully qualified, change the name type
-                    NAME_TYPE="-sname"
-                fi
+            if [ "$NAME_TYPE" != "-sname" ]; then
+                HOSTNAME="$(get_hostname)"
+                OLD_NAME="$NAME"
+                NAME="$NAME@$HOSTNAME"
+                NAME_TYPE="-name"
+                notice "Automatically converted short name ($OLD_NAME) to long name ($NAME)!"
+                notice "It is recommended that you set a fully-qualified name in vm.args instead"
             fi
-            NAME=$NAME@$(get_hostname)
             ;;
     esac
 }
@@ -211,7 +305,11 @@ _load_cookie() {
     if [ ! -z "$COOKIE" ]; then
         return 0
     fi
-    COOKIE_ARG="$(grep '^-setcookie' "$VMARGS_PATH" || true)"
+    vmargs="$(get_vmargs_path)"
+    if [ -z "$vmargs" ]; then
+        return 1
+    fi
+    COOKIE_ARG="$(_replace_os_vars_str "${vmargs}" | grep '^-setcookie' || true)"
     DEFAULT_COOKIE_FILE="$HOME/.erlang.cookie"
     if [ ! -z "$COOKIE_ARG" ]; then
         COOKIE="$(echo "$COOKIE_ARG" | awk '{ print $2 }')"

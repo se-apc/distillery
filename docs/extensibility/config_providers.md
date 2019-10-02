@@ -8,7 +8,7 @@ desired.
 ## Implementing a Provider
 
 To implement a new configuration provider, a module must implement the
-`Mix.Releases.Config.Provider` behavior, which has a single callback, `init/1`.
+`Distillery.Releases.Config.Provider` behavior, which has a single callback, `init/1`.
 
 Config providers are executed in a pre-boot phase, in their own instance of the
 VM, where all applications are loaded, and only kernel, stdlib, compiler, and
@@ -70,18 +70,18 @@ The actual implementation looks like this:
 
 ```elixir
 defmodule JsonConfigProvider do
-  use Mix.Releases.Config.Provider
+  use Distillery.Releases.Config.Provider
 
   def init([config_path]) do
     # Helper which expands paths to absolute form
     # and expands env vars in the path of the form `${VAR}`
     # to their value in the system environment
-    config_path = Provider.expand_path(config_path)
+    {:ok, config_path} = Provider.expand_path(config_path)
     # All applications are already loaded at this point
     if File.exists?(config_path) do
       config_path
+      |> File.read!
       |> Jason.decode!
-      |> to_keyword()
       |> persist()
     else
       :ok
@@ -91,7 +91,7 @@ defmodule JsonConfigProvider do
   defp to_keyword(config) when is_map(config) do
     for {k, v} <- config do
       k = String.to_atom(k)
-      {k, to_keyword(config)}
+      {k, to_keyword(v)}
     end
   end
   defp to_keyword(config), do: config
@@ -123,4 +123,4 @@ defmodule JsonConfigProvider do
 end
 ```
 
-See the module docs for `Mix.Releases.Config.Provider` if you want to know more about the behaviour of these callbacks.
+See the module docs for `Distillery.Releases.Config.Provider` if you want to know more about the behaviour of these callbacks.

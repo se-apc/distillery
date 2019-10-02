@@ -1,4 +1,4 @@
-defmodule Mix.Tasks.Release do
+defmodule Mix.Tasks.Distillery.Release do
   @moduledoc """
   Build a release for the current mix application.
 
@@ -9,7 +9,7 @@ defmodule Mix.Tasks.Release do
     * `--profile` - selects both a release and environment, syntax for profiles is `name:env`
 
   Releases and environments are defined in `rel/config.exs`, created via
-  `release.init`. When determining the name and environment to use, refer to the
+  `distillery.init`. When determining the name and environment to use, refer to the
   definitions in that file if you are not sure what options are available.
 
     * `--erl`     - provide extra flags to `erl` when running the release, expects a string
@@ -50,31 +50,31 @@ defmodule Mix.Tasks.Release do
   ## Usage
 
   You are generally recommended to use `rel/config.exs` to configure Distillery, and
-  simply run `mix release` with `MIX_ENV` set to the Mix environment you are targeting.
+  simply run `mix distillery.release` with `MIX_ENV` set to the Mix environment you are targeting.
   The following are some usage examples:
 
       # Builds a release with MIX_ENV=dev (the default)
-      mix release
+      mix distillery.release
 
       # Builds a release with MIX_ENV=prod
-      MIX_ENV=prod mix release
+      MIX_ENV=prod mix distillery.release
 
       # Builds a release for a specific release environment
-      MIX_ENV=prod mix release --env=dev
+      MIX_ENV=prod mix distillery.release --env=dev
 
-  The default configuration produced by `release.init` will result in `mix release`
+  The default configuration produced by `distillery.init` will result in `mix distillery.release`
   selecting the first release in the config file (`rel/config.exs`), and the
   environment which matches the current Mix environment (i.e. the value of `MIX_ENV`).
   """
   @shortdoc "Build a release for the current mix application"
   use Mix.Task
 
-  alias Mix.Releases.Config
-  alias Mix.Releases.Release
-  alias Mix.Releases.Shell
-  alias Mix.Releases.Assembler
-  alias Mix.Releases.Archiver
-  alias Mix.Releases.Errors
+  alias Distillery.Releases.Config
+  alias Distillery.Releases.Release
+  alias Distillery.Releases.Shell
+  alias Distillery.Releases.Assembler
+  alias Distillery.Releases.Archiver
+  alias Distillery.Releases.Errors
 
   @spec run(OptionParser.argv()) :: no_return
   def run(args) do
@@ -93,7 +93,7 @@ defmodule Mix.Tasks.Release do
 
     case Config.get(opts) do
       {:error, {:config, :not_found}} ->
-        Shell.error("You are missing a release config file. Run the release.init task first")
+        Shell.error("You are missing a release config file. Run the distillery.init task first")
         System.halt(1)
 
       {:error, {:config, reason}} ->
@@ -251,7 +251,8 @@ defmodule Mix.Tasks.Release do
       executable: [enabled: false, transient: false],
       is_upgrade: false,
       no_tar: false,
-      upgrade_from: :latest
+      upgrade_from: :latest,
+      erl_opts: nil,
     }
 
     do_parse_args(flags, defaults)
@@ -355,5 +356,9 @@ defmodule Mix.Tasks.Release do
 
   defp do_parse_args([{:upfrom, version} | rest], acc) do
     do_parse_args(rest, Map.put(acc, :upgrade_from, version))
+  end
+
+  defp do_parse_args([{:erl, erl_opts} | rest], acc) do
+    do_parse_args(rest, Map.put(acc, :erl_opts, erl_opts))
   end
 end

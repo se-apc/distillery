@@ -3,7 +3,7 @@ defmodule Distillery.Test.CliTest do
 
   import ExUnit.CaptureIO
 
-  alias Mix.Releases.Runtime.Control
+  alias Distillery.Releases.Runtime.Control
   alias ExUnit.ClusteredCase.Node, as: NodeManager
   
   @fixtures_path Path.join([__DIR__, "..", "fixtures"])
@@ -293,7 +293,7 @@ defmodule Distillery.Test.CliTest do
   end
 
   defp is_failure(fun) do
-    capture_io(:stderr, fn ->
+    capture_io(fn ->
       try do
         fun.()
       catch

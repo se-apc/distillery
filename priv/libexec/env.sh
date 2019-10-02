@@ -12,11 +12,6 @@ RUN_ERL_DISABLE_FLOWCNTRL="${RUN_ERL_DISABLE_FLOWCNTRL:-true}"
 # VM code loading mode, embedded by default, can also be interactive
 # See http://erlang.org/doc/man/code.html
 CODE_LOADING_MODE="${CODE_LOADING_MODE:-embedded}"
-# Path to start_erl.data
-START_ERL_DATA="${START_ERL_DATA:-$RELEASE_ROOT_DIR/releases/start_erl.data}"
-# Directory containing the current version of this release
-export REL_DIR
-REL_DIR="${REL_DIR:-$RELEASE_ROOT_DIR/releases/$REL_VSN}"
 # The lib directory for this release
 REL_LIB_DIR="${REL_LIB_DIR:-$RELEASE_ROOT_DIR/lib}"
 # The location of generated files and other mutable state
@@ -27,14 +22,17 @@ RUNNER_LOG_DIR="${RUNNER_LOG_DIR:-$RELEASE_MUTABLE_DIR/log}"
 # A string of extra options to pass to erl, here for plugins
 EXTRA_OPTS="${EXTRA_OPTS:-}"
 # The hook paths for each of the available hookable events
-PRE_CONFIGURE_HOOKS="$REL_DIR/hooks/pre_configure.d"
-POST_CONFIGURE_HOOKS="$REL_DIR/hooks/post_configure.d"
-PRE_START_HOOKS="$REL_DIR/hooks/pre_start.d"
-POST_START_HOOKS="$REL_DIR/hooks/post_start.d"
-PRE_STOP_HOOKS="$REL_DIR/hooks/pre_stop.d"
-POST_STOP_HOOKS="$REL_DIR/hooks/post_stop.d"
-PRE_UPGRADE_HOOKS="$REL_DIR/hooks/pre_upgrade.d"
-POST_UPGRADE_HOOKS="$REL_DIR/hooks/post_upgrade.d"
+reset_hooks() {
+    export PRE_CONFIGURE_HOOKS="$REL_DIR/hooks/pre_configure.d"
+    export POST_CONFIGURE_HOOKS="$REL_DIR/hooks/post_configure.d"
+    export PRE_START_HOOKS="$REL_DIR/hooks/pre_start.d"
+    export POST_START_HOOKS="$REL_DIR/hooks/post_start.d"
+    export PRE_STOP_HOOKS="$REL_DIR/hooks/pre_stop.d"
+    export POST_STOP_HOOKS="$REL_DIR/hooks/post_stop.d"
+    export PRE_UPGRADE_HOOKS="$REL_DIR/hooks/pre_upgrade.d"
+    export POST_UPGRADE_HOOKS="$REL_DIR/hooks/post_upgrade.d"
+}
+reset_hooks
 
 # Exported environment variables
 export BINDIR="$ERTS_DIR/bin"

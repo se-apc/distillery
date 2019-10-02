@@ -14,15 +14,15 @@ end
 ## Initial configuration
 
 Once installed, you need to run a one-time setup task which creates the configuration file Distillery
-uses to define releases and environments. To do so, you just need to run the `release.init` task:
+uses to define releases and environments. To do so, you just need to run the `distillery.init` task:
 
-    $ mix release.init
+    $ mix distillery.init
 
 
 !!! tip
-    To get more details about the `release.init` task, or any others, use the `help` task:
+    To get more details about the `distillery.init` task, or any others, use the `help` task:
 
-        mix help release.init
+        mix help distillery.init
 
     This will provide more information about available flags, and usage examples for the given task.
 
@@ -31,7 +31,7 @@ here, depending on whether you want a default configuration that puts all applic
 in a single release (the default), or build a release for each application individually. You can always
 modify the generated config to define releases using whatever combination of applications you like.
 
-The output of `release.init` is a config file, `rel/config.exs`, which is an Elixir script much like
+The output of `distillery.init` is a config file, `rel/config.exs`, which is an Elixir script much like
 `config/config.exs`, and is used to define releases and environment-specific release configuration.
 An example of what those look like is below:
 
@@ -68,10 +68,10 @@ can find out more about these in [Configuring Distillery](../config/distillery.m
     also a solution for enabling normal users to create symlinks [see here for more](https://superuser.com/a/125981).
 
 Now that you have an initial configuration generated, you are ready to start building releases!
-The command used to do so is `mix release`:
+The command used to do so is `mix distillery.release`:
 
 ```
-$ mix release
+$ mix distillery.release
 ==> distillery
 Compiling 33 files (.ex)
 Generated distillery app
@@ -111,7 +111,7 @@ For a complete listing of commands and their use:
     the value of `MIX_ENV`, i.e. the result of `Mix.env/0`. You can use a release environment
     different from `MIX_ENV` with the `--env` flag:
 
-        $ MIX_ENV=prod mix release --env=staging
+        $ MIX_ENV=prod mix distillery.release --env=staging
 
 Since we're building with `MIX_ENV=dev` (the default Mix environment), the release is built using
 the default release and `:dev` environment from the config file (one of the default environments generated).

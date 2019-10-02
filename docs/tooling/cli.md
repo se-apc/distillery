@@ -9,10 +9,10 @@ means by which you interact with that release.
 
 Distillery provides the following Mix tasks:
 
-  * `release.init` - for initializing Distillery within a new project
-  * `release` - for building releases
-  * `release.clean` - for cleaning up generated release artifacts
-  * `release.gen.appup` - for generating appups to use in upgrade releases
+  * `distillery.init` - for initializing Distillery within a new project
+  * `distillery.release` - for building releases
+  * `distillery.release.clean` - for cleaning up generated release artifacts
+  * `distillery.gen.appup` - for generating appups to use in upgrade releases
 
 For more information about these commands and their usage:
 
@@ -22,6 +22,9 @@ For more information about these commands and their usage:
     If you are building releases as part of your CI/CD pipeline, you may want to use
     the `--warnings-as-errors` flag to the `release` task. This will prevent
     building releases which may fail at runtime from making it through the pipeline.
+    **NOTE**: this `--warnings-as-errors` is not the same as the `compile` task `--warnings-as-errors`,
+    if you want both, you should run `compile` first, then run `distillery.release`, passing
+    the flag to both.
 
 ## Release tasks
 

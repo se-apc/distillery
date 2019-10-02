@@ -26,11 +26,13 @@ $codepaths = get-code-paths
 $service_argv += "-pa"
 $service_argv += $codepaths
 $service_argv += @("-pa", $Env:CONSOLIDATED_DIR)
+$base_argv = erl-args @service_argv
 # Add start_erl opts, delimited by ++
 $service_argv += "++"
 $service_argv += "-noconfig"
 $service_argv += @("-rootdir", $Env:RELEASE_ROOT_DIR)
 $service_argv += @("-reldir", (join-path $Env:RELEASE_ROOT_DIR "releases"))
+$service_argv += @("-data", "$Env:START_ERL_DATA)
 
 $service_argv = $service_argv | foreach { 
     if ($_.StartsWith("-") -or $_.StartsWith("+")) {
@@ -42,7 +44,9 @@ $service_argv = $service_argv | foreach {
 }
 
 # Convert argv into a string for -args
+$base_args = $base_argv -join " "
 $service_args = $service_argv -join " "
+$service_args = $base_args, $service_args -join " "
 
 $name_type = ("-{0}" -f $Env:NAME_TYPE)
 
@@ -51,7 +55,6 @@ $argv += @("-comment", (ensure-quoted $desc))
 $argv += @($name_type, $Env:NAME)
 $argv += @("-workdir", $Env:RELEASE_ROOT_DIR)
 $argv += @("-machine", $start_erl)
-$argv += @("-debugtype", "new")
 $argv += @("-stopaction", (ensure-quoted "init:stop()."))
 $argv += @("-args", (ensure-quoted $service_args))
 
